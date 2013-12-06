@@ -41,10 +41,46 @@ RqlConnector.prototype.SendRql = function(InnerRQL, IsText, CallbackFunc)
 			this.SendRqlCOM(InnerRQL, IsText, CallbackFunc);
 			break;
 		case this.WebService11:
-			this.SendRqlWebService(InnerRQL, IsText, CallbackFunc);
+		    this.SendRqlWebServiceWithoutProxy(InnerRQL, IsText, CallbackFunc);
 			break;
 	}
 }
+
+//  The old way communicate with the rqlconnector without using the .net proxy
+RqlConnector.prototype.SendRqlWebServiceWithoutProxy = function (InnerRQL, IsText, CallbackFunc) {
+    var SOAPMessage = '';
+    SOAPMessage += '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">';
+    SOAPMessage += '<s:Body><q1:Execute xmlns:q1="http://tempuri.org/RDCMSXMLServer/message/"><sParamA>' + this.padRQLXML(InnerRQL, IsText) + '</sParamA><sErrorA></sErrorA><sResultInfoA></sResultInfoA></q1:Execute></s:Body>';
+    SOAPMessage += '</s:Envelope>';
+
+    $.ajax({
+        type: 'POST',
+        url: this.WebService11Url,
+        data: SOAPMessage,
+        contentType: 'text/xml; charset=utf-8',
+        dataType: 'xml',
+        beforeSend: function (xhr) {
+            xhr.setRequestHeader('SOAPAction', 'http://tempuri.org/RDCMSXMLServer/action/XmlServer.Execute');
+        },
+        success: function (data) {
+            var RetRql = $(data).find('Result').text();
+
+            if (IsText) {
+                data = RetRql;
+            }
+            else {
+                data = $('<div/>').append(RetRql);
+            }
+
+            CallbackFunc(data);
+        },
+        error: function (message) {
+            //alert(message);
+            CallbackFunc(message);
+        }
+    });
+}
+
 
 RqlConnector.prototype.SendRqlWebService = function(InnerRQL, IsText, CallbackFunc)
 {
